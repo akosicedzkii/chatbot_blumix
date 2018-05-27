@@ -8,7 +8,6 @@ from watson_developer_cloud import DiscoveryV1
 import re
 import logging
 from pprint import pprint
-import string
 
 app = Flask(__name__)
 ACCESS_TOKEN = 'EAAJ4pZA9Krr0BAL8ZBLqGHQmHly9Jo819w3y0c5llpLeZCihEKx2PqCg7crsfyInAaa61V74JZAp8XjVWac4ahhnu1CZBTM5oEJZB3lygOAb6r7WMshqGe7zz402DdjrFro820zHzYWmJtnyn3PMTnc91uRx518SUJ1lIfZAXtZALDihvNBDmyON'
@@ -37,21 +36,45 @@ def receive_message():
                 recipient_id = message['sender']['id']
                 if message['message'].get('text'):
                                        
-                    try:   
-                        username = "cf386d90-3dce-4db9-9f35-94d51ea3b468"
-                        password = "FSny6CcM1Wh5"
-                        environment_id = "c0b065ea-e935-42ae-b062-becf297fff77"
-                        collection_id = "fbd67673-766c-49ac-a210-904876f534be"
+                    username = "cf386d90-3dce-4db9-9f35-94d51ea3b468"
+                    password = "FSny6CcM1Wh5"
+                    environment_id = "c0b065ea-e935-42ae-b062-becf297fff77"
+                    collection_id = "ff9c8eb9-024a-4e0a-a96c-8fe4284e03e1"
+                    query = message['message']['text'].lower()
+                    query = query.replace("who",query)
+                    query = query.replace("what",query)
+                    query = query.replace("when",query)
+                    query = query.replace("how",query)
+                    query = query.replace("who",query)
+                 
 
-                        query = message['message']['text'].lower()
-                        original_query = query
-                        query = query.replace("who",query)
-                        query = query.replace("what",query)
-                        query = query.replace("when",query)
-                        query = query.replace("how",query)
-                        query = query.replace("who",query)
+                  
+                    discovery = DiscoveryV1(
+                        version="2017-11-07",
+                        username= username,
+                        password= password,
+                        url='https://gateway.watsonplatform.net/discovery/api'
+                    )
 
-                        URL = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch="+ query +"&utf8=&format=json"
+                        # api-endpoint
+                    URL = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch="+ query +"&utf8=&format=json"
+
+
+                    # sending get request and saving the response as response object
+                    r = requests.get(url = URL)
+
+                    # extracting data in json format
+                    data = r.json()
+                    response_sent_text = json.dumps(data, indent=2)
+                    decoded = json.loads(response_sent_text)
+                    
+                    try:
+                        pageid = decoded["query"]["search"][0]["pageid"]
+                        #for page in pages:
+                            
+                        #pageid = page["pageid"]
+                        
+                        URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&pageids=" + str(pageid)
 
 
                         # sending get request and saving the response as response object
@@ -61,46 +84,37 @@ def receive_message():
                         data = r.json()
                         response_sent_text = json.dumps(data, indent=2)
                         decoded = json.loads(response_sent_text)
-                        pages = decoded["query"]["search"]
-                        discovery = DiscoveryV1(
-                            version="2017-11-07",
-                            username= username,
-                            password= password,
-                            url='https://gateway.watsonplatform.net/discovery/api'
-                        )
-                        counter = 0
-                        '''for page in pages:
-                            pageid = page["pageid"]
-                            URL = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&pageids=" + str(pageid)
-                            r = requests.get(url = URL)
-                            data = r.json()
-                            response_sent_text = json.dumps(data, indent=2)
-                            decoded = json.loads(response_sent_text)
-                            requestss = decoded["query"]["pages"][str(pageid)]["extract"]
-                            f = open( 'demo.html','w')
-                            printable = set(string.printable)
-                            printable = filter(lambda x: x in printable, requestss)
-                            message = "<html><head><title>SearchResult<title></head><body><p>"+ printable +"</p></body></html>"
+                        '''f = open(str(recipient_id) + '.html','w')
 
-                            f.write(message)
-                            f.close()
-                            with open(os.path.join(os.getcwd(), '', 'demo.html')) as fileinfo:
-                                add_doc = discovery.add_document(environment_id, collection_id, file=fileinfo)
-                            if counter == 1:
-                                break
-                            counter = counter + 1 
+                        message = "<html><head></head><body><p>" + decoded["query"]["pages"][str(pageid)]["extract"] + "</p></body></html>"
 
-                        my_query = discovery.query(passages_characters=2000,environment_id=environment_id, collection_id=collection_id, natural_language_query=original_query,deduplicate=False,highlight=True,passages=True,passages_count=1)
-                        returns =  str(my_query["passages"][0]["passage_text"].replace("SearchResult",""))
-                        returns = returns.rsplit(".",1)[0]'''
-                        returns = original_query
+                        f.write(message)
+                        f.close()
+                        with open(os.path.join(os.getcwd(), '', str(recipient_id) + '.html')) as fileinfo:
+                            add_doc = discovery.add_document(environment_id, collection_id, file=fileinfo)
+                        #requestss = decoded["query"]["pages"][str(pageid)]["extract"].split(".")
+                        
+                        my_query = discovery.query(environment_id=environment_id, collection_id=collection_id, query=query,deduplicate=False,highlight=True,passages=True,passages_count=1)
+                        #print(json.dumps(my_query, indent=2))
+                        response_sent_text = json.dumps(my_query, indent=2)
+                        decoded = json.loads(response_sent_text)
+                        #print(json.dumps(my_query, indent=2))
+                        requestss = decoded["passages"][0]["passage_text"]'''
+                        requestss = decoded["query"]["pages"][str(pageid)]["extract"].split(".")
+                        try:
+                            requestss = requestss[0] + "." + requestss[1] + "." + requestss[2] + "."
+                        except:
+                            try:
+                                requestss = requestss[0] + "." + requestss[1] + "."
+                            except:
+                                requestss = requestss[0] + "."
                     except:
                         try:
-                            returns = "Do you mean: " + decoded["query"]["searchinfo"]["suggestion"]
+                            requestss = "Do you mean: " + decoded["query"]["searchinfo"]["suggestion"]
                         except:
-                            returns = "No results found for: " + query
-
-                    send_message(recipient_id, returns)
+                            requestss = "No results found for: " + query
+                
+                    send_message(recipient_id, cleanhtml(requestss))
                 
             if message.get('postback'):
                 requestss =  message["postback"]["payload"]
